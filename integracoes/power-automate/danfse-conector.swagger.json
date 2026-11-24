@@ -1,0 +1,92 @@
+{
+  "swagger": "2.0",
+  "info": {
+    "title": "DANFSe (gerador)",
+    "description": "Gera o DANFSe em PDF a partir do XML da NFS-e nacional. Conector personalizado para o Power Automate / Power Apps.",
+    "version": "1.0"
+  },
+  "host": "SEU-SERVICO.azurewebsites.net",
+  "basePath": "/",
+  "schemes": [ "https" ],
+  "securityDefinitions": {
+    "chave_api": {
+      "type": "apiKey",
+      "in": "header",
+      "name": "Ocp-Apim-Subscription-Key",
+      "x-ms-summary": "Chave de acesso da API"
+    }
+  },
+  "security": [ { "chave_api": [] } ],
+  "paths": {
+    "/api/danfse": {
+      "post": {
+        "operationId": "GerarDanfsePdf",
+        "summary": "Gerar DANFSe em PDF",
+        "description": "Recebe o XML completo da NFS-e (elemento raiz NFSe) e devolve o DANFSe em PDF.",
+        "consumes": [ "application/xml" ],
+        "produces": [ "application/pdf", "application/json" ],
+        "parameters": [
+          {
+            "name": "stc",
+            "in": "query",
+            "type": "string",
+            "required": false,
+            "default": "0",
+            "enum": [ "0", "1", "2" ],
+            "x-ms-summary": "Situação da nota",
+            "description": "0 = Válida, 1 = Substituída, 2 = Cancelada"
+          },
+          {
+            "name": "canhoto",
+            "in": "query",
+            "type": "boolean",
+            "required": false,
+            "default": true,
+            "x-ms-summary": "Exibir canhoto",
+            "description": "true exibe o canhoto (recibo); false oculta."
+          },
+          {
+            "name": "xml",
+            "in": "body",
+            "required": true,
+            "x-ms-summary": "XML da NFS-e",
+            "description": "Conteúdo completo do XML da NFS-e.",
+            "schema": { "type": "string", "format": "binary" }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "DANFSe em PDF",
+            "schema": { "type": "string", "format": "binary", "x-ms-summary": "PDF do DANFSe" }
+          },
+          "400": {
+            "description": "XML inválido ou parâmetro incorreto",
+            "schema": {
+              "type": "object",
+              "properties": {
+                "sucesso": { "type": "boolean", "x-ms-summary": "Sucesso" },
+                "mensagem": { "type": "string", "x-ms-summary": "Mensagem" }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/health/ready": {
+      "get": {
+        "operationId": "VerificarServico",
+        "summary": "Verificar se o serviço está pronto",
+        "produces": [ "application/json" ],
+        "responses": {
+          "200": {
+            "description": "Serviço pronto",
+            "schema": {
+              "type": "object",
+              "properties": { "status": { "type": "string", "x-ms-summary": "Status" } }
+            }
+          }
+        }
+      }
+    }
+  }
+}
