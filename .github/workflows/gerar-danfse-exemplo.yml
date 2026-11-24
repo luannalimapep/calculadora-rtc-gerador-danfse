@@ -1,0 +1,67 @@
+name: Gerar DANFSe de exemplo
+
+# Compila o servico, roda os testes, sobe o servidor e gera o PDF de cada XML
+# da pasta exemplos/. Os PDFs ficam disponiveis no artefato "danfse-exemplo".
+on:
+  workflow_dispatch:
+  push:
+    branches: [ main ]
+    paths:
+      - "exemplos/**"
+      - ".github/workflows/gerar-danfse-exemplo.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  gerar:
+    name: Compilar, testar e gerar PDFs
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Baixar o codigo
+        uses: actions/checkout@v7
+
+      - name: Instalar o Go
+        uses: actions/setup-go@v7
+        with:
+          go-version-file: go.mod
+          cache-dependency-path: go.sum
+
+      - name: Rodar os testes
+        run: go test -count=1 ./...
+
+      - name: Compilar
+        run: go build -o bin/danfse-service ./cmd/danfse
+
+      - name: Subir o servidor e gerar os PDFs
+        run: |
+          ./bin/danfse-service 2> servidor.log &
+          for i in $(seq 1 30); do
+            if curl -fsS http://localhost:8080/health/ready; then break; fi
+            sleep 1
+          done
+          echo
+          mkdir -p saida
+          for xml in exemplos/*.xml; do
+            nome=$(basename "$xml" .xml)
+            echo "Gerando $nome.pdf"
+            curl --fail-with-body -sS -X POST "http://localhost:8080/api/danfse" \
+              -H "Content-Type: application/xml" --data-binary @"$xml" \
+              -o "saida/$nome.pdf"
+            curl --fail-with-body -sS -X POST "http://localhost:8080/api/danfse?canhoto=false" \
+              -H "Content-Type: application/xml" --data-binary @"$xml" \
+              -o "saida/$nome-sem-canhoto.pdf"
+            curl --fail-with-body -sS -X POST "http://localhost:8080/api/danfse?stc=2" \
+              -H "Content-Type: application/xml" --data-binary @"$xml" \
+              -o "saida/$nome-cancelada.pdf"
+          done
+          ls -la saida
+          cp servidor.log saida/
+
+      - name: Publicar os PDFs
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: danfse-exemplo
+          path: saida/
