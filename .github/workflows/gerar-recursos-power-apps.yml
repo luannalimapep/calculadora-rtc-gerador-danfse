@@ -1,0 +1,69 @@
+name: Gerar recursos da web (Power Apps)
+
+# Compila o gerador em WebAssembly, empacota em arquivos aceitos como recurso da
+# web do Power Apps, testa no Node e publica tudo em power-apps/dist/.
+on:
+  workflow_dispatch:
+  push:
+    branches: [ main ]
+    paths:
+      - "power-apps/danfse.html"
+      - "power-apps/empacotar.js"
+      - "power-apps/testar.js"
+      - ".github/workflows/gerar-recursos-power-apps.yml"
+
+permissions:
+  contents: write
+
+jobs:
+  gerar:
+    name: Compilar, testar e publicar
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Baixar o codigo
+        uses: actions/checkout@v7
+
+      - name: Instalar o Go
+        uses: actions/setup-go@v7
+        with:
+          go-version-file: go.mod
+          cache-dependency-path: go.sum
+
+      - name: Instalar o Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Compilar o WebAssembly
+        run: |
+          GOOS=js GOARCH=wasm CGO_ENABLED=0 go build -ldflags="-s -w" -o /tmp/danfse.wasm ./cmd/danfse-wasm
+          mkdir -p power-apps/dist
+          GOROOT=$(go env GOROOT)
+          if [ -f "$GOROOT/lib/wasm/wasm_exec.js" ]; then
+            cp "$GOROOT/lib/wasm/wasm_exec.js" power-apps/dist/wasm_exec.js
+          else
+            cp "$GOROOT/misc/wasm/wasm_exec.js" power-apps/dist/wasm_exec.js
+          fi
+          gzip -9 -c /tmp/danfse.wasm > /tmp/danfse.wasm.gz
+          ls -l /tmp/danfse.wasm /tmp/danfse.wasm.gz
+
+      - name: Empacotar para recurso da web
+        run: node power-apps/empacotar.js /tmp/danfse.wasm.gz power-apps/dist
+
+      - name: Testar no Node
+        run: node power-apps/testar.js power-apps/dist exemplos/nfse-exemplo-homologacao.xml /tmp/teste.pdf
+
+      - name: Gerar imagem do PDF de teste
+        run: |
+          sudo apt-get install -y poppler-utils > /dev/null
+          pdftoppm -png -r 70 -singlefile /tmp/teste.pdf power-apps/previa-danfse
+
+      - name: Publicar no repositorio
+        run: |
+          ls -l power-apps/dist
+          git config user.name "github-actions[bot]"
+          git config user.email "41898333+github-actions[bot]@users.noreply.github.com"
+          git add power-apps/dist power-apps/previa-danfse.png
+          git diff --cached --quiet || git commit -m "Atualiza recursos da web do DANFSe (Power Apps)"
+          git push
