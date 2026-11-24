@@ -1,0 +1,194 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Gerador de DANFSe</title>
+<style>
+  :root { --azul: #0b4f8a; --cinza: #5f6b7a; --borda: #d6dbe1; --fundo: #f6f8fa; --erro: #b42318; --ok: #067647; }
+  * { box-sizing: border-box; }
+  body { margin: 0; font-family: "Segoe UI", Arial, sans-serif; color: #1d2733; background: #fff; }
+  main { max-width: 760px; margin: 0 auto; padding: 24px 20px 40px; }
+  h1 { font-size: 22px; margin: 0 0 4px; }
+  .sub { color: var(--cinza); margin: 0 0 20px; font-size: 14px; }
+  .card { border: 1px solid var(--borda); border-radius: 8px; padding: 18px; margin-bottom: 16px; background: #fff; }
+  label { font-weight: 600; font-size: 14px; display: block; margin-bottom: 6px; }
+  .linha { display: flex; gap: 16px; flex-wrap: wrap; align-items: flex-end; }
+  .linha > div { flex: 1 1 200px; }
+  select, input[type=file] { width: 100%; font: inherit; padding: 8px; border: 1px solid var(--borda); border-radius: 6px; background: #fff; }
+  .check { display: flex; align-items: center; gap: 8px; font-weight: 400; margin: 0; }
+  .zona { border: 2px dashed var(--borda); border-radius: 8px; padding: 22px; text-align: center; background: var(--fundo); color: var(--cinza); font-size: 14px; }
+  .zona.ativa { border-color: var(--azul); color: var(--azul); }
+  button { font: inherit; font-weight: 600; border: 0; border-radius: 6px; padding: 10px 18px; cursor: pointer; background: var(--azul); color: #fff; }
+  button:disabled { opacity: .5; cursor: default; }
+  .status { font-size: 13px; color: var(--cinza); margin-top: 10px; }
+  table { width: 100%; border-collapse: collapse; font-size: 14px; }
+  th, td { text-align: left; padding: 8px 6px; border-bottom: 1px solid var(--borda); vertical-align: top; }
+  th { font-size: 12px; text-transform: uppercase; color: var(--cinza); letter-spacing: .03em; }
+  .erro { color: var(--erro); }
+  .ok { color: var(--ok); }
+  a { color: var(--azul); }
+  .nota { font-size: 12px; color: var(--cinza); margin-top: 18px; line-height: 1.5; }
+</style>
+</head>
+<body>
+<main>
+  <h1>Gerador de DANFSe</h1>
+  <p class="sub">Gera o DANFSe (NT 008) a partir do XML da NFS-e nacional. O XML é processado neste navegador e não é enviado a nenhum servidor.</p>
+
+  <div class="card">
+    <div class="zona" id="zona">
+      <label for="arquivos" style="font-weight:400;margin:0;cursor:pointer">Arraste os XMLs aqui ou clique para escolher</label>
+      <input type="file" id="arquivos" accept=".xml,text/xml,application/xml" multiple style="margin-top:12px">
+    </div>
+    <div class="linha" style="margin-top:16px">
+      <div>
+        <label for="stc">Situação da nota</label>
+        <select id="stc">
+          <option value="0">Válida</option>
+          <option value="1">Substituída (marca d'água)</option>
+          <option value="2">Cancelada (marca d'água)</option>
+        </select>
+      </div>
+      <div>
+        <label class="check"><input type="checkbox" id="canhoto" checked> Incluir canhoto</label>
+      </div>
+      <div style="flex:0 0 auto">
+        <button id="gerar" disabled>Gerar DANFSe</button>
+      </div>
+    </div>
+    <div class="status" id="status">Carregando o gerador…</div>
+  </div>
+
+  <div class="card" id="resultado" hidden>
+    <table>
+      <thead><tr><th>Arquivo</th><th>Resultado</th></tr></thead>
+      <tbody id="linhas"></tbody>
+    </table>
+  </div>
+
+  <p class="nota">Gerador baseado no projeto calculadora-rtc-gerador-danfse da Receita Federal (licença MIT). A situação escolhida vale para todos os XMLs do lote: notas canceladas ou substituídas devem ser geradas em lote separado.</p>
+</main>
+
+<script src="wasm_exec.js"></script>
+<script>
+(function () {
+  var TOTAL_PARTES = __PARTES__;
+  var statusEl = document.getElementById('status');
+  var botao = document.getElementById('gerar');
+  var entrada = document.getElementById('arquivos');
+  var zona = document.getElementById('zona');
+  var linhas = document.getElementById('linhas');
+  var resultado = document.getElementById('resultado');
+  var pronto = false;
+
+  function status(msg, classe) { statusEl.textContent = msg; statusEl.className = 'status ' + (classe || ''); }
+
+  function carregarScript(src) {
+    return new Promise(function (ok, falha) {
+      var s = document.createElement('script');
+      s.src = src; s.onload = ok;
+      s.onerror = function () { falha(new Error('Não foi possível carregar ' + src)); };
+      document.head.appendChild(s);
+    });
+  }
+
+  async function iniciar() {
+    try {
+      if (typeof Go === 'undefined') throw new Error('wasm_exec.js não carregou.');
+      if (typeof DecompressionStream === 'undefined') throw new Error('Este navegador não suporta o gerador. Use o Edge ou o Chrome atualizados.');
+      window.DANFSE_WASM_PARTES = [];
+      for (var i = 1; i <= TOTAL_PARTES; i++) {
+        status('Carregando o gerador (' + i + '/' + TOTAL_PARTES + ')…');
+        await carregarScript('danfse_wasm_' + i + '.js');
+      }
+      var b64 = window.DANFSE_WASM_PARTES.join('');
+      window.DANFSE_WASM_PARTES = null;
+      var bin = Uint8Array.from(atob(b64), function (c) { return c.charCodeAt(0); });
+      var fluxo = new Blob([bin]).stream().pipeThrough(new DecompressionStream('gzip'));
+      var wasm = await new Response(fluxo).arrayBuffer();
+      var go = new Go();
+      var inst = await WebAssembly.instantiate(wasm, go.importObject);
+      go.run(inst.instance);
+      for (var t = 0; t < 100 && !(window.danfseWasm && window.danfseWasm.ready !== undefined); t++) {
+        await new Promise(function (r) { setTimeout(r, 50); });
+      }
+      if (!window.danfseWasm || !window.danfseWasm.ready) {
+        throw new Error((window.danfseWasm && window.danfseWasm.error) || 'O gerador não iniciou.');
+      }
+      pronto = true;
+      status('Pronto. Escolha um ou mais XMLs.', 'ok');
+      atualizarBotao();
+    } catch (e) {
+      status('Erro ao carregar o gerador: ' + e.message, 'erro');
+    }
+  }
+
+  function atualizarBotao() { botao.disabled = !(pronto && entrada.files && entrada.files.length); }
+
+  function baixarLink(nome, base64) {
+    var bin = Uint8Array.from(atob(base64), function (c) { return c.charCodeAt(0); });
+    var url = URL.createObjectURL(new Blob([bin], { type: 'application/pdf' }));
+    var a = document.createElement('a');
+    a.href = url; a.download = nome; a.textContent = 'Baixar ' + nome;
+    return a;
+  }
+
+  function nomePdf(nomeXml) { return nomeXml.replace(/\.xml$/i, '') + '.pdf'; }
+
+  async function gerar() {
+    botao.disabled = true;
+    linhas.innerHTML = '';
+    resultado.hidden = false;
+    var stc = parseInt(document.getElementById('stc').value, 10);
+    var canhoto = document.getElementById('canhoto').checked;
+    var arquivos = Array.prototype.slice.call(entrada.files);
+    var gerados = 0;
+    for (var i = 0; i < arquivos.length; i++) {
+      var f = arquivos[i];
+      var tr = document.createElement('tr');
+      var tdNome = document.createElement('td'); tdNome.textContent = f.name;
+      var tdRes = document.createElement('td'); tdRes.textContent = 'Gerando…';
+      tr.appendChild(tdNome); tr.appendChild(tdRes); linhas.appendChild(tr);
+      status('Gerando ' + (i + 1) + ' de ' + arquivos.length + '…');
+      await new Promise(function (r) { setTimeout(r, 0); });
+      try {
+        var xml = await f.text();
+        var r = window.danfseWasm.gerarPdf(JSON.stringify({ xml: xml, stc: stc, canhoto: canhoto }));
+        tdRes.textContent = '';
+        if (r && r.pdf) {
+          tdRes.appendChild(baixarLink(nomePdf(f.name), r.pdf));
+          gerados++;
+        } else {
+          tdRes.className = 'erro';
+          tdRes.textContent = (r && r.error) || 'Erro desconhecido.';
+        }
+      } catch (e) {
+        tdRes.className = 'erro';
+        tdRes.textContent = e.message;
+      }
+    }
+    status(gerados + ' de ' + arquivos.length + ' DANFSe gerado(s).', gerados === arquivos.length ? 'ok' : 'erro');
+    if (gerados === 1 && arquivos.length === 1) { var a = linhas.querySelector('a'); if (a) a.click(); }
+    atualizarBotao();
+  }
+
+  entrada.addEventListener('change', atualizarBotao);
+  botao.addEventListener('click', gerar);
+  ['dragenter', 'dragover'].forEach(function (ev) {
+    zona.addEventListener(ev, function (e) { e.preventDefault(); zona.classList.add('ativa'); });
+  });
+  ['dragleave', 'drop'].forEach(function (ev) {
+    zona.addEventListener(ev, function (e) { e.preventDefault(); zona.classList.remove('ativa'); });
+  });
+  zona.addEventListener('drop', function (e) {
+    if (e.dataTransfer && e.dataTransfer.files.length) { entrada.files = e.dataTransfer.files; atualizarBotao(); }
+  });
+
+  iniciar();
+})();
+</script>
+</body>
+</html>
+
+}}}}}}}}}}}}}}}}}}}
