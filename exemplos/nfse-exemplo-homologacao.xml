@@ -1,0 +1,92 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- NFS-e FICTICIA, em ambiente de homologacao (tpAmb=2), apenas para testar a geracao do DANFSe. -->
+<NFSe versao="1.00" xmlns="http://www.sped.fazenda.gov.br/nfse">
+  <infNFSe Id="NFS35503082212345678000195000000000000126110000000017">
+    <xLocEmi>Sao Paulo</xLocEmi>
+    <xLocPrestacao>Sao Paulo</xLocPrestacao>
+    <nNFSe>1</nNFSe>
+    <cLocIncid>3550308</cLocIncid>
+    <xLocIncid>Sao Paulo</xLocIncid>
+    <xTribNac>Analise e desenvolvimento de sistemas.</xTribNac>
+    <ambGer>2</ambGer>
+    <cStat>100</cStat>
+    <dhProc>2026-11-24T10:00:00-03:00</dhProc>
+    <emit>
+      <CNPJ>12345678000195</CNPJ>
+      <IM>12345678</IM>
+      <xNome>EMPRESA PRESTADORA FICTICIA LTDA</xNome>
+      <enderNac>
+        <xLgr>Avenida Paulista</xLgr>
+        <nro>1000</nro>
+        <xBairro>Bela Vista</xBairro>
+        <cMun>3550308</cMun>
+        <UF>SP</UF>
+        <CEP>01310100</CEP>
+      </enderNac>
+      <fone>1130000000</fone>
+      <email>contato@prestadora-ficticia.com.br</email>
+    </emit>
+    <valores>
+      <vBC>1000.00</vBC>
+      <pAliqAplic>2.00</pAliqAplic>
+      <vISSQN>20.00</vISSQN>
+      <vTotalRet>0.00</vTotalRet>
+      <vLiq>1000.00</vLiq>
+    </valores>
+    <DPS versao="1.00">
+      <infDPS Id="DPS355030821234567800019500001000000000000001">
+        <tpAmb>2</tpAmb>
+        <dhEmi>2026-11-24T09:55:00-03:00</dhEmi>
+        <serie>1</serie>
+        <nDPS>1</nDPS>
+        <dCompet>2026-11-24</dCompet>
+        <tpEmit>1</tpEmit>
+        <cLocEmi>3550308</cLocEmi>
+        <prest>
+          <CNPJ>12345678000195</CNPJ>
+          <regTrib>
+            <opSimpNac>1</opSimpNac>
+            <regEspTrib>0</regEspTrib>
+          </regTrib>
+        </prest>
+        <toma>
+          <CNPJ>11222333000181</CNPJ>
+          <xNome>EMPRESA TOMADORA FICTICIA S.A.</xNome>
+          <end>
+            <endNac>
+              <cMun>3550308</cMun>
+              <CEP>04538132</CEP>
+            </endNac>
+            <xLgr>Avenida Brigadeiro Faria Lima</xLgr>
+            <nro>3000</nro>
+            <xBairro>Itaim Bibi</xBairro>
+          </end>
+          <email>fiscal@tomadora-ficticia.com.br</email>
+        </toma>
+        <serv>
+          <locPrest>
+            <cLocPrestacao>3550308</cLocPrestacao>
+          </locPrest>
+          <cServ>
+            <cTribNac>010101</cTribNac>
+            <xDescServ>Servico de desenvolvimento de sistema - nota ficticia para teste de geracao do DANFSe.</xDescServ>
+          </cServ>
+        </serv>
+        <valores>
+          <vServPrest>
+            <vServ>1000.00</vServ>
+          </vServPrest>
+          <trib>
+            <tribMun>
+              <tribISSQN>1</tribISSQN>
+              <tpRetISSQN>1</tpRetISSQN>
+            </tribMun>
+            <totTrib>
+              <indTotTrib>0</indTotTrib>
+            </totTrib>
+          </trib>
+        </valores>
+      </infDPS>
+    </DPS>
+  </infNFSe>
+</NFSe>
