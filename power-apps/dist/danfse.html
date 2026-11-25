@@ -134,6 +134,39 @@
     return a;
   }
 
+  // Identifica o tipo de documento antes de chamar o gerador, para explicar em
+  // português por que um XML que não é NFS-e nacional não pode virar DANFSe.
+  function verificarTipo(xml) {
+    var doc = new DOMParser().parseFromString(xml, 'application/xml');
+    if (doc.getElementsByTagName('parsererror').length) {
+      return 'O arquivo não é um XML válido (pode estar incompleto ou corrompido).';
+    }
+    var raiz = doc.documentElement;
+    var nome = raiz.localName;
+    var ns = raiz.namespaceURI || '';
+    var outro = ', não uma NFS-e. Este gerador aceita apenas a NFS-e nacional (Ambiente Nacional);';
+    if (nome === 'NFSe') return null;
+    if (/portalfiscal\.inf\.br\/nfe/i.test(ns) || nome === 'nfeProc' || nome === 'NFe') {
+      var mod = doc.getElementsByTagNameNS('*', 'mod')[0];
+      var m = mod ? mod.textContent.trim() : '55';
+      var tipo = m === '65' ? 'NFC-e (modelo 65)' : 'NF-e (modelo ' + m + ')';
+      return 'Este arquivo é uma ' + tipo + outro + ' para ' + (m === '65' ? 'NFC-e' : 'NF-e') + ', o documento auxiliar é o DANFE.';
+    }
+    if (/portalfiscal\.inf\.br\/cte/i.test(ns) || /^(cteProc|CTe|cteOSProc|CTeOS)$/.test(nome)) {
+      return 'Este arquivo é um CT-e' + outro + ' para CT-e, o documento auxiliar é o DACTE.';
+    }
+    if (/portalfiscal\.inf\.br\/mdfe/i.test(ns) || /^(mdfeProc|MDFe)$/.test(nome)) {
+      return 'Este arquivo é um MDF-e' + outro + ' para MDF-e, o documento auxiliar é o DAMDFE.';
+    }
+    if (nome === 'DPS') {
+      return 'Este arquivo é a DPS (Declaração de Prestação de Serviço), não a NFS-e autorizada. Use o XML da NFS-e emitida, que já traz a DPS dentro dela.';
+    }
+    if (/abrasf/i.test(ns) || /nfse/i.test(nome)) {
+      return 'Este arquivo parece ser uma NFS-e no padrão municipal (elemento <' + nome + '>), não no padrão nacional. Este gerador aceita apenas a NFS-e nacional (Ambiente Nacional).';
+    }
+    return 'Este arquivo não é uma NFS-e nacional (o elemento principal é <' + nome + '>, e o esperado é <NFSe>).';
+  }
+
   function nomePdf(nomeXml) { return nomeXml.replace(/\.xml$/i, '') + '.pdf'; }
 
   async function gerar() {
@@ -154,6 +187,12 @@
       await new Promise(function (r) { setTimeout(r, 0); });
       try {
         var xml = await f.text();
+        var problema = verificarTipo(xml);
+        if (problema) {
+          tdRes.className = 'erro';
+          tdRes.textContent = problema;
+          continue;
+        }
         var r = window.danfseWasm.gerarPdf(JSON.stringify({ xml: xml, stc: stc, canhoto: canhoto }));
         tdRes.textContent = '';
         if (r && r.pdf) {
